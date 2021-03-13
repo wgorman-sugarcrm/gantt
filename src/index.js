@@ -74,11 +74,11 @@ export default class Gantt {
 
     setup_options(options) {
         const default_options = {
-            header_height: 50,
+            header_height: 50 + 30,
             column_width: 30,
             step: 24,
             view_modes: [...Object.values(VIEW_MODE)],
-            bar_height: 20,
+            bar_height: 40,
             bar_corner_radius: 3,
             arrow_curve: 5,
             padding: 18,
@@ -86,7 +86,8 @@ export default class Gantt {
             date_format: 'YYYY-MM-DD',
             popup_trigger: 'click',
             custom_popup_html: null,
-            language: 'en'
+            language: 'en',
+            bar_h_padding: 4
         };
         this.options = Object.assign({}, default_options, options);
     }
@@ -193,7 +194,7 @@ export default class Gantt {
             this.options.column_width = 38;
         } else if (view_mode === VIEW_MODE.WEEK) {
             this.options.step = 24 * 7;
-            this.options.column_width = 140;
+            this.options.column_width = 100; // orig = 140
         } else if (view_mode === VIEW_MODE.MONTH) {
             this.options.step = 24 * 30;
             this.options.column_width = 120;
@@ -234,6 +235,9 @@ export default class Gantt {
         } else if (this.view_is(VIEW_MODE.YEAR)) {
             this.gantt_start = date_utils.add(this.gantt_start, -2, 'year');
             this.gantt_end = date_utils.add(this.gantt_end, 2, 'year');
+        } else if (this.view_is(VIEW_MODE.WEEK)) {
+            this.gantt_start = date_utils.add(this.gantt_start, -7, 'day');
+            this.gantt_end = date_utils.add(this.gantt_end, 7, 'day');
         } else {
             this.gantt_start = date_utils.add(this.gantt_start, -1, 'month');
             this.gantt_end = date_utils.add(this.gantt_end, 1, 'month');
@@ -274,6 +278,7 @@ export default class Gantt {
         this.setup_layers();
         this.make_grid();
         this.make_dates();
+        this.make_sprint_labels();
         this.make_bars();
         this.make_arrows();
         this.map_arrows_on_bars();
@@ -299,6 +304,7 @@ export default class Gantt {
         this.make_grid_header();
         this.make_grid_ticks();
         this.make_grid_highlights();
+        this.make_sprint_highlights();
     }
 
     make_grid_background() {
@@ -306,8 +312,7 @@ export default class Gantt {
         const grid_height =
             this.options.header_height +
             this.options.padding +
-            (this.options.bar_height + this.options.padding) *
-                this.tasks.length;
+            (this.options.bar_height + this.options.padding) * 4;
 
         createSVG('rect', {
             x: 0,
@@ -412,6 +417,51 @@ export default class Gantt {
         }
     }
 
+    make_sprint_highlights() {
+        // highlight today's date
+        if (this.view_is(VIEW_MODE.WEEK)) {
+            let count = 0;
+            for (let date of this.dates) {
+                if (date.getDay() === 1) {
+                    console.log(
+                        'sprint: ' +
+                            date +
+                            ' count = ' +
+                            count +
+                            ' count %4 = ' +
+                            count % 4
+                    );
+                    count++;
+                    if (!(count % 4 === 0)) {
+                        continue;
+                    }
+
+                    const x =
+                        date_utils.diff(date, this.gantt_start, 'hour') /
+                        this.options.step *
+                        this.options.column_width;
+                    const y =
+                        this.options.header_height + this.options.padding / 2;
+
+                    const width = this.options.column_width * 2;
+                    const height =
+                        (this.options.bar_height + this.options.padding) *
+                        this.tasks.length;
+
+
+                    createSVG('rect', {
+                        x,
+                        y,
+                        width,
+                        height,
+                        class: 'today-highlight',
+                        append_to: this.layers.grid
+                    });
+                }
+            }
+        }
+    }
+
     make_grid_highlights() {
         // highlight today's date
         if (this.view_is(VIEW_MODE.DAY)) {
@@ -463,6 +513,43 @@ export default class Gantt {
                     $upper_text.getBBox().x2 > this.layers.grid.getBBox().width
                 ) {
                     $upper_text.remove();
+                }
+            }
+        }
+    }
+
+    make_sprint_labels() {
+        if (this.view_is(VIEW_MODE.WEEK)) {
+            let count = 0;
+            let sprintCount = 1;
+            for (let date of this.dates) {
+                if (date.getDay() === 1) {
+                    count++;
+                    if (!(count % 2 === 0)) {
+                        continue;
+                    }
+
+
+                    const x =
+                        date_utils.diff(date, this.gantt_start, 'hour') /
+                        this.options.step *
+                        this.options.column_width;
+                    const y =
+                        this.options.header_height; //  + this.options.padding / 2;
+
+                    const width = this.options.column_width * 2;
+                    const height =
+                        (this.options.bar_height + this.options.padding) *
+                        this.tasks.length;
+                    createSVG('text', {
+                        x: x,
+                        y: y,
+                        innerHTML: 'Sprint ' + sprintCount,
+                        class: 'sprint-text',
+                        append_to: this.layers.date
+                    });
+                    sprintCount++;
+
                 }
             }
         }
@@ -533,8 +620,8 @@ export default class Gantt {
 
         const base_pos = {
             x: i * this.options.column_width,
-            lower_y: this.options.header_height,
-            upper_y: this.options.header_height - 25
+            lower_y: this.options.header_height - 30,
+            upper_y: this.options.header_height - 25 - 30
         };
 
         const x_pos = {

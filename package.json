@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "start": "yarn run dev",
-    "build": "rollup -c",
+    "sass": "sass --watch src/gantt.scss dist/frappe-gantt.css",
+    "build": "rollup -c --verbose",
     "dev": "rollup -c -w",
     "test": "jest",
     "test:watch": "jest --watch",

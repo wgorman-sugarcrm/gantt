@@ -29,7 +29,9 @@ export default class Bar {
         this.duration =
             date_utils.diff(this.task._end, this.task._start, 'hour') /
             this.gantt.options.step;
-        this.width = this.gantt.options.column_width * this.duration;
+        this.width =
+            this.gantt.options.column_width * this.duration -
+            this.gantt.options.bar_h_padding * 2;
         this.progress_width =
             this.gantt.options.column_width *
                 this.duration *
@@ -71,6 +73,7 @@ export default class Bar {
         this.draw_progress_bar();
         this.draw_label();
         this.draw_resize_handles();
+        this.draw_jira();
     }
 
     draw_bar() {
@@ -118,6 +121,27 @@ export default class Bar {
         });
         // labels get BBox in the next tick
         requestAnimationFrame(() => this.update_label_position());
+    }
+    draw_jira() {
+        if (this.task.jira) {
+            let c = 0;
+            for (let j of this.task.jira) {
+                let svg = createSVG('a', {
+                    href: j,
+                    target: '_blank',
+                    append_to: this.bar_group
+                });
+                let svg2 = createSVG('image', {
+                    x: this.x + 4 + c * 20,
+                    y: this.y + this.height / 2 - 10,
+                    width: 20,
+                    height: 20,
+                    append_to: svg,
+                    href: 'src/jira_icon.png'
+                });
+                c++;
+            }
+        }
     }
 
     draw_resize_handles() {
@@ -311,6 +335,7 @@ export default class Bar {
             const diff = date_utils.diff(task_start, gantt_start, 'day');
             x = diff * column_width / 30;
         }
+        x += this.gantt.options.bar_h_padding;
         return x;
     }
 
@@ -318,7 +343,10 @@ export default class Bar {
         return (
             this.gantt.options.header_height +
             this.gantt.options.padding +
-            this.task._index * (this.height + this.gantt.options.padding)
+            (typeof this.task.row !== 'undefined'
+                ? this.task.row
+                : this.task._index) *
+                (this.height + this.gantt.options.padding)
         );
     }
 
